@@ -1,0 +1,13 @@
+[SddmGreeterTheme]
+Name=Cozy
+Type=sddm-theme
+Description=A cozy SDDM theme.
+License=MIT
+Version=1.0.0
+Theme-Id=cozy
+Theme-API=2.0
+MainScript=Main.qml
+Screenshot=docs/previews/dark.png
+TranslationsDirectory=translations
+QtVersion=6
+ConfigFile=configs/dark.conf

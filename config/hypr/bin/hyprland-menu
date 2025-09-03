@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+
+menu() {
+  local title="$1"
+  local options="$2"
+  local extra="$3"
+  local preselect="$4"
+
+  read -r -a args <<<"$extra"
+
+  if [[ -n "$preselect" ]]; then
+    local index
+    index=$(echo -e "$options" | grep -nxF "$preselect" | cut -d: -f1)
+    if [[ -n "$index" ]]; then
+      args+=("-a" "$index")
+    fi
+  fi
+
+  echo -e "$options" | wofi --insensitive --show dmenu -p "$title" "${args[@]}"
+}
+
+terminal() {
+  kitty -- "$@"
+}
+
+edit_in_nvim() {
+  notify-send "Editing config file" "$1"
+  kitty -- nvim "$1"
+}
+
+show_capture_menu() {
+  case $(menu "Capture" "  Screenshot\n  Screenrecord\n  Color") in
+  *Screenshot*) show_screenshot_menu ;;
+  *Screenrecord*) show_screenrecord_menu ;;
+  *Color*) pkill hyprpicker || hyprpicker -a ;;
+  *) show_main_menu ;;
+  esac
+}
+
+show_screenshot_menu() {
+  case $(menu "Screenshot" "  Region\n  Window\n  Display") in
+  *Region*) grim -g "$(slurp)" - | wl-copy ;;
+  *Window*) grim -o "$(hyprctl -t monitors | grep -o 'Monitor [^:]*' | head -1 | cut -d' ' -f2)" - | wl-copy ;;
+  *Display*) grim -o "$(hyprctl -t monitors | grep -o 'Monitor [^:]*' | head -1 | cut -d' ' -f2)" - | wl-copy ;;
+  *) show_capture_menu ;;
+  esac
+}
+
+show_screenrecord_menu() {
+  case $(menu "Screenrecord" "  Region\n  Display") in
+  *Region*) notify-send "Screenrecord" "Region recording not implemented - customize this function" ;;
+  *Display*) notify-send "Screenrecord" "Display recording not implemented - customize this function" ;;
+  *) show_capture_menu ;;
+  esac
+}
+
+show_toggle_menu() {
+  case $(menu "Toggle" "  Nightlight\n  Idle Lock\n  Top Bar\n  Do Not Disturb\n  Airplane Mode") in
+  *Nightlight*) ~/.config/hypr/bin/hyprland-toggle-nightlight ;;
+  *Idle*) ~/.config/hypr/bin/hyprland-toggle-idle ;;
+  *Bar*) ~/.config/hypr/bin/hyprland-toggle-waybar ;;
+  *Disturb*) ~/.config/hypr/bin/hyprland-toggle-dnd ;;
+  *Airplane*) ~/.config/hypr/bin/hyprland-toggle-airplane-mode ;;
+  *) show_main_menu ;;
+  esac
+}
+
+show_setup_menu() {
+  local options="  Audio\n  Wifi\n  Bluetooth\n  Power Profile\n  Monitors\n  Keyboard\n  Mouse\n  Privacy\n  Users\n  Region\n  Date & Time"
+  [ -f ~/.config/hypr/bindings.conf ] && options="$options\n  Keybindings"
+  [ -f ~/.config/hypr/input.conf ] && options="$options\n  Input"
+  options="$options\n  DNS\n  Config"
+
+  case $(menu "Setup" "$options") in
+  *Audio*) pavucontrol & ;;
+  *Wifi*)
+    notify-send "WiFi" "Not implemented - customize this function"
+    ;;
+  *Bluetooth*)
+    notify-send "WiFi" "Not implemented - customize this function"
+    ;;
+  *Power*) show_setup_power_menu ;;
+  *Monitors*) edit_in_nvim ~/.config/hypr/monitors.conf ;;
+  *Keyboard*) gnome-control-center keyboard ;;
+  *Mouse*) gnome-control-center mouse ;;
+  *Privacy*) gnome-control-center privacy ;;
+  *Users*) gnome-control-center user-accounts ;;
+  *Region*) gnome-control-center region ;;
+  *Date*) gnome-control-center datetime ;;
+  *Keybindings*) edit_in_nvim ~/.config/hypr/bindings.conf ;;
+  *Input*) edit_in_nvim ~/.config/hypr/input.conf ;;
+  *DNS*) gnome-control-center network ;;
+  *Config*) show_setup_config_menu ;;
+  *) show_main_menu ;;
+  esac
+}
+
+show_setup_power_menu() {
+  if command -v powerprofilesctl &> /dev/null; then
+    profile=$(menu "Power Profile" "$(powerprofilesctl list | grep -E '^\*?[[:space:]]*[a-zA-Z-]+' | sed 's/^\*[[:space:]]*//')" "" "$(powerprofilesctl get)")
+
+    if [[ "$profile" == "CNCLD" || -z "$profile" ]]; then
+      show_main_menu
+    else
+      powerprofilesctl set "$profile"
+    fi
+  else
+    notify-send "Power Profiles" "powerprofilesctl not available"
+  fi
+}
+
+show_setup_config_menu() {
+  case $(menu "Setup" "  Hyprland\n  Hypridle\n  Hyprlock\n  Hyprsunset\n  Swayosd\n  Walker\n  Waybar") in
+  *Hyprland*) edit_in_nvim ~/.config/hypr/hyprland.conf ;;
+  *Hypridle*) edit_in_nvim ~/.config/hypr/hypridle.conf && pkill hypridle && hypridle & ;;
+  *Hyprlock*) edit_in_nvim ~/.config/hypr/hyprlock.conf ;;
+  *Hyprsunset*) edit_in_nvim ~/.config/hypr/hyprsunset.conf && pkill hyprsunset && hyprsunset & ;;
+  *Swayosd*) edit_in_nvim ~/.config/swayosd/config.toml && pkill swayosd && swayosd & ;;
+  *Waybar*) edit_in_nvim ~/.config/waybar/config.jsonc && pkill waybar && waybar & ;;
+  *) show_main_menu ;;
+  esac
+}
+
+show_update_process_menu() {
+  case $(menu "Restart" "  Hypridle\n  Hyprsunset\n  Swayosd\n  Waybar\n  Wofi") in
+  *Hypridle*) pkill hypridle && hypridle & ;;
+  *Hyprsunset*) pkill hyprsunset && hyprsunset & ;;
+  *Swayosd*) pkill swayosd && swayosd & ;;
+  *Waybar*) pkill waybar && waybar & ;;
+  *Wofi*) pkill wofi ;;
+  *) show_main_menu ;;
+  esac
+}
+
+show_system_menu() {
+  case $(menu "System" "  Lock\n  Screensaver\n  Suspend\n  Relaunch\n  Restart\n  Shutdown\n  System Settings") in
+  *Lock*) hyprlock ;;
+  *Suspend*) systemctl suspend ;;
+  *Relaunch*) notify-send "Relaunch" "Relaunch not implemented - customize this function" ;;
+  *Restart*) systemctl reboot ;;
+  *Shutdown*) systemctl poweroff ;;
+  *) show_main_menu ;;
+  esac
+}
+
+show_main_menu() {
+  go_to_menu "$(menu "Go" "  Apps\n  Capture\n  Toggle\n  Style\n  Setup\n  Install\n  Remove\n  Update\n  About\n  System\n  System Settings")"
+}
+
+go_to_menu() {
+  case "${1,,}" in
+  *apps*) wofi --insensitive --show drun -p "Launch…" ;;
+  *capture*) show_capture_menu ;;
+  *screenshot*) show_screenshot_menu ;;
+  *screenrecord*) show_screenrecord_menu ;;
+  *toggle*) show_toggle_menu ;;
+  *setup*) show_setup_menu ;;
+  *power*) show_setup_power_menu ;;
+  *system*) show_system_menu ;;
+  esac
+}
+
+if [[ -n "$1" ]]; then
+  go_to_menu "$1"
+else
+  show_main_menu
+fi
