@@ -36,6 +36,8 @@ a powerful menu for system configuration.
 
 ## Screenshots
 
+![cozy hyprland screenshot](assets/screenshot-hyprland.png)
+
 The waybar provides:
 
 - Workspace management with click-to-switch
