@@ -47,6 +47,8 @@ The waybar provides:
 - Update notifications
 - Clean, modern styling with full Nerd Font icons
 
+![cozy hyprland menu screenshot](assets/screenshot-menu.png)
+
 The menu system includes:
 
 - Application launcher
