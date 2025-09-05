@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+# Capture the full output of pamac checkupdates
+updates_info=$(pamac checkupdates 2>/dev/null)
+
+# Check the exit code. A code of 100 means updates are available.
+if [ "$?" -eq 100 ]; then
+
+    # Extract all lines that contain a package name.
+    package_list=$(echo "$updates_info" | grep -E ' ->|AUR' | awk '{print $1}')
+
+    # Count the number of extracted packages
+    num_updates=$(echo "$package_list" | wc -l)
+
+    # Format the package list for the tooltip, adding a bullet point to each name
+    formatted_list=$(echo "$package_list" | sed 's/^/- /')
+
+    # Escape the newlines in the formatted list so it is a valid JSON string.
+    # We use `printf` and `sed` to replace each literal newline with the `\n` sequence.
+    escaped_list=$(printf "%s" "$formatted_list" | sed ':a;N;s/\n/\\n/g;ta')
+
+    # Construct the full tooltip text.
+    tooltip_text="There are $num_updates packages available to upgrade:\\n\\n$escaped_list"
+
+    echo "{\"text\": \"📦\", \"tooltip\": \"$tooltip_text\", \"class\": \"updates\"}"
+fi

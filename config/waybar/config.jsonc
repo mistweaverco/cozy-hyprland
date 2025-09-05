@@ -44,11 +44,11 @@
     "tooltip-format": "Hyprland Menu\n\nSuper + Space"
   },
   "custom/update": {
-    "format": "{?output: }",
-    "exec": "pamac checkupdates 2>&1 > /dev/null; if [ \"$?\" -eq 100 ]; then echo \"updates\"; fi",
+    // only show icon when updates are available, else show a cat emoji
+    "format": "{text}",
+    "exec": "~/.config/hypr/bin/hyprland-check-updates",
     "on-click": "kitty --class TUI.float pamac upgrade",
-    // TODO: add a notification when updates are available and extract the package names of updates
-    "tooltip-format": "Updates available: {}",
+    "return-type": "json",
     "interval": 3600
   },
 

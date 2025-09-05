@@ -323,7 +323,7 @@ show_nested_submenu() {
                         local script
                         script=$(echo "$submenu_data" | jq -r ".items[$i].script // \"\"" 2>/dev/null)
                         if [[ -n "$script" ]]; then
-                            bash "$script"
+                            bash "$(eval echo "$script")"
                         fi
                         ;;
                     "edit")
@@ -490,7 +490,7 @@ handle_menu_selection() {
                     ;;
                 "script")
                     if [[ -n "$script" ]]; then
-                        bash "$script"
+                        bash "$(eval echo "$script")"
                     fi
                     ;;
                 "edit")
@@ -515,12 +515,6 @@ handle_menu_selection() {
                         if [[ -n "$submenu_title" && "$submenu_title" != "null" && "$submenu_title" != "" ]]; then
                             # It's a nested submenu, show it directly
                             show_nested_submenu "$submenu" "$title" "$menu_path > $title"
-                        else
-                            # It's a reference to another menu, show that menu
-                            # Push to stack and return special value to indicate menu change
-                            push_menu "$submenu" "$menu_path > $title"
-                            echo "MENU_CHANGE:$submenu:$title:$menu_path > $title"
-                            return 0
                         fi
                     fi
                     ;;
