@@ -45,8 +45,9 @@
   },
   "custom/update": {
     "format": "{?output: }",
-    "exec": "checkupdates | wc -l",
+    "exec": "pamac checkupdates 2>&1 > /dev/null; if [ \"$?\" -eq 100 ]; then echo \"updates\"; fi",
     "on-click": "kitty --class TUI.float pamac upgrade",
+    // TODO: add a notification when updates are available and extract the package names of updates
     "tooltip-format": "Updates available: {}",
     "interval": 3600
   },
