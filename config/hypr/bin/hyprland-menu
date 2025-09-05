@@ -1,167 +1,567 @@
 #!/usr/bin/env bash
 
-menu() {
-  local title="$1"
-  local options="$2"
-  local extra="$3"
-  local preselect="$4"
+# Cozy Hyprland Menu
+# A dynamic menu system for Hyprland using YAML configuration
 
-  read -r -a args <<<"$extra"
+# Configuration
+CONFIG_FILE="${HYPRLAND_MENU_CONFIG:-$HOME/.config/hypr/cozy-hyprland-menu.yaml}"
+SCRIPT_FILE="$(realpath "$0")"
 
-  if [[ -n "$preselect" ]]; then
-    local index
-    index=$(echo -e "$options" | grep -nxF "$preselect" | cut -d: -f1)
-    if [[ -n "$index" ]]; then
-      args+=("-a" "$index")
-    fi
-  fi
-
-  echo -e "$options" | wofi --insensitive --show dmenu -p "$title" "${args[@]}"
-}
-
-terminal() {
-  kitty -- "$@"
-}
-
-edit_in_nvim() {
-  notify-send "Editing config file" "$1"
-  kitty -- nvim "$1"
-}
-
-show_capture_menu() {
-  case $(menu "Capture" "  Screenshot\n  Screenrecord\n  Color") in
-  *Screenshot*) show_screenshot_menu ;;
-  *Screenrecord*) show_screenrecord_menu ;;
-  *Color*) pkill hyprpicker || hyprpicker -a ;;
-  *) show_main_menu ;;
-  esac
-}
-
-show_screenshot_menu() {
-  case $(menu "Screenshot" "  Region\n  Window\n  Display") in
-  *Region*) grim -g "$(slurp)" - | wl-copy ;;
-  *Window*) grim -o "$(hyprctl -t monitors | grep -o 'Monitor [^:]*' | head -1 | cut -d' ' -f2)" - | wl-copy ;;
-  *Display*) grim -o "$(hyprctl -t monitors | grep -o 'Monitor [^:]*' | head -1 | cut -d' ' -f2)" - | wl-copy ;;
-  *) show_capture_menu ;;
-  esac
-}
-
-show_screenrecord_menu() {
-  case $(menu "Screenrecord" "  Region\n  Display") in
-  *Region*) notify-send "Screenrecord" "Region recording not implemented - customize this function" ;;
-  *Display*) notify-send "Screenrecord" "Display recording not implemented - customize this function" ;;
-  *) show_capture_menu ;;
-  esac
-}
-
-show_toggle_menu() {
-  case $(menu "Toggle" "  Nightlight\n  Idle Lock\n  Top Bar\n  Do Not Disturb\n  Airplane Mode") in
-  *Nightlight*) ~/.config/hypr/bin/hyprland-toggle-nightlight ;;
-  *Idle*) ~/.config/hypr/bin/hyprland-toggle-idle ;;
-  *Bar*) ~/.config/hypr/bin/hyprland-toggle-waybar ;;
-  *Disturb*) ~/.config/hypr/bin/hyprland-toggle-dnd ;;
-  *Airplane*) ~/.config/hypr/bin/hyprland-toggle-airplane-mode ;;
-  *) show_main_menu ;;
-  esac
-}
-
-show_setup_menu() {
-  local options="  Audio\n  Wifi\n  Bluetooth\n  Power Profile\n  Monitors\n  Keyboard\n  Mouse\n  Privacy\n  Users\n  Region\n  Date & Time"
-  [ -f ~/.config/hypr/bindings.conf ] && options="$options\n  Keybindings"
-  [ -f ~/.config/hypr/input.conf ] && options="$options\n  Input"
-  options="$options\n  DNS\n  Config"
-
-  case $(menu "Setup" "$options") in
-  *Audio*) pavucontrol & ;;
-  *Wifi*)
-    notify-send "WiFi" "Not implemented - customize this function"
-    ;;
-  *Bluetooth*)
-    notify-send "WiFi" "Not implemented - customize this function"
-    ;;
-  *Power*) show_setup_power_menu ;;
-  *Monitors*) edit_in_nvim ~/.config/hypr/monitors.conf ;;
-  *Keyboard*) gnome-control-center keyboard ;;
-  *Mouse*) gnome-control-center mouse ;;
-  *Privacy*) gnome-control-center privacy ;;
-  *Users*) gnome-control-center user-accounts ;;
-  *Region*) gnome-control-center region ;;
-  *Date*) gnome-control-center datetime ;;
-  *Keybindings*) edit_in_nvim ~/.config/hypr/bindings.conf ;;
-  *Input*) edit_in_nvim ~/.config/hypr/input.conf ;;
-  *DNS*) gnome-control-center network ;;
-  *Config*) show_setup_config_menu ;;
-  *) show_main_menu ;;
-  esac
-}
-
-show_setup_power_menu() {
-  if command -v powerprofilesctl &> /dev/null; then
-    profile=$(menu "Power Profile" "$(powerprofilesctl list | grep -E '^\*?[[:space:]]*[a-zA-Z-]+' | sed 's/^\*[[:space:]]*//')" "" "$(powerprofilesctl get)")
-
-    if [[ "$profile" == "CNCLD" || -z "$profile" ]]; then
-      show_main_menu
-    else
-      powerprofilesctl set "$profile"
-    fi
-  else
-    notify-send "Power Profiles" "powerprofilesctl not available"
-  fi
-}
-
-show_setup_config_menu() {
-  case $(menu "Setup" "  Hyprland\n  Hypridle\n  Hyprlock\n  Hyprsunset\n  Swayosd\n  Walker\n  Waybar") in
-  *Hyprland*) edit_in_nvim ~/.config/hypr/hyprland.conf ;;
-  *Hypridle*) edit_in_nvim ~/.config/hypr/hypridle.conf && pkill hypridle && hypridle & ;;
-  *Hyprlock*) edit_in_nvim ~/.config/hypr/hyprlock.conf ;;
-  *Hyprsunset*) edit_in_nvim ~/.config/hypr/hyprsunset.conf && pkill hyprsunset && hyprsunset & ;;
-  *Swayosd*) edit_in_nvim ~/.config/swayosd/config.toml && pkill swayosd && swayosd & ;;
-  *Waybar*) edit_in_nvim ~/.config/waybar/config.jsonc && pkill waybar && waybar & ;;
-  *) show_main_menu ;;
-  esac
-}
-
-show_update_process_menu() {
-  case $(menu "Restart" "  Hypridle\n  Hyprsunset\n  Swayosd\n  Waybar\n  Wofi") in
-  *Hypridle*) pkill hypridle && hypridle & ;;
-  *Hyprsunset*) pkill hyprsunset && hyprsunset & ;;
-  *Swayosd*) pkill swayosd && swayosd & ;;
-  *Waybar*) pkill waybar && waybar & ;;
-  *Wofi*) pkill wofi ;;
-  *) show_main_menu ;;
-  esac
-}
-
-show_system_menu() {
-  case $(menu "System" "  Lock\n  Screensaver\n  Suspend\n  Relaunch\n  Restart\n  Shutdown\n  System Settings") in
-  *Lock*) hyprlock ;;
-  *Suspend*) systemctl suspend ;;
-  *Relaunch*) notify-send "Relaunch" "Relaunch not implemented - customize this function" ;;
-  *Restart*) systemctl reboot ;;
-  *Shutdown*) systemctl poweroff ;;
-  *) show_main_menu ;;
-  esac
-}
-
-show_main_menu() {
-  go_to_menu "$(menu "Go" "  Apps\n  Capture\n  Toggle\n  Style\n  Setup\n  Install\n  Remove\n  Update\n  About\n  System\n  System Settings")"
-}
-
-go_to_menu() {
-  case "${1,,}" in
-  *apps*) wofi --insensitive --show drun -p "Launch…" ;;
-  *capture*) show_capture_menu ;;
-  *screenshot*) show_screenshot_menu ;;
-  *screenrecord*) show_screenrecord_menu ;;
-  *toggle*) show_toggle_menu ;;
-  *setup*) show_setup_menu ;;
-  *power*) show_setup_power_menu ;;
-  *system*) show_system_menu ;;
-  esac
-}
-
-if [[ -n "$1" ]]; then
-  go_to_menu "$1"
-else
-  show_main_menu
+# Check if yq is available
+if ! command -v yq &> /dev/null; then
+    echo "Error: yq is required but not installed. Please install yq to use this script."
+    echo "Install with: pacman -S yq (Arch) or apt install yq (Ubuntu/Debian)"
+    exit 1
 fi
+
+# Check if config file exists
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "Error: Configuration file not found: $CONFIG_FILE"
+    exit 1
+fi
+
+# Cache management functions
+get_cache_file() {
+    local yaml_hash script_hash
+    yaml_hash=$(sha256sum "$CONFIG_FILE" | cut -d' ' -f1)
+    script_hash=$(sha256sum "$SCRIPT_FILE" | cut -d' ' -f1)
+    echo "/tmp/cozy-hyprland-menu-cache-${USER}-${yaml_hash}-${script_hash}.json"
+}
+
+is_cache_valid() {
+    local cache_file="$1"
+    [[ -f "$cache_file" ]]
+}
+
+generate_cache() {
+    local cache_file="$1"
+
+    echo "Generating menu cache..." >&2
+
+    # Convert YAML to JSON and save as cache
+    yq . "$CONFIG_FILE" > "$cache_file"
+
+    echo "Cache generated: $cache_file"
+}
+
+load_cache() {
+    local cache_file="$1"
+    # Cache is loaded by querying the JSON file directly
+    CACHE_FILE="$cache_file"
+}
+
+# Initialize cache
+CACHE_FILE=$(get_cache_file)
+if ! is_cache_valid "$CACHE_FILE"; then
+    generate_cache "$CACHE_FILE"
+fi
+load_cache "$CACHE_FILE"
+
+# Menu navigation stack
+declare -a MENU_STACK=()
+declare -a MENU_PATH_STACK=()
+
+# Menu stack management functions
+push_menu() {
+    local menu_name="$1"
+    local menu_path="$2"
+    MENU_STACK+=("$menu_name")
+    MENU_PATH_STACK+=("$menu_path")
+}
+
+pop_menu() {
+    if [[ ${#MENU_STACK[@]} -gt 0 ]]; then
+        unset MENU_STACK[-1]
+        unset MENU_PATH_STACK[-1]
+    fi
+}
+
+get_current_menu() {
+    if [[ ${#MENU_STACK[@]} -gt 0 ]]; then
+        echo "${MENU_STACK[-1]}"
+    else
+        echo ""
+    fi
+}
+
+get_current_path() {
+    if [[ ${#MENU_PATH_STACK[@]} -gt 0 ]]; then
+        echo "${MENU_PATH_STACK[-1]}"
+    else
+        echo ""
+    fi
+}
+
+# Query functions for the JSON cache
+get_config() {
+    local key="$1"
+    local default="$2"
+    local is_array="${3:-false}"
+
+    local value
+    value=$(jq -r ".config.$key // \"$default\"" "$CACHE_FILE" 2>/dev/null)
+
+    if [[ "$is_array" == "true" ]]; then
+        # Handle array case - if value is a JSON array, parse it
+        if [[ -n "$value" && "$value" != "null" ]]; then
+            # Check if it's a JSON array by trying to parse it
+            if echo "$value" | jq -e '. | type == "array"' >/dev/null 2>&1; then
+                # It's a JSON array, parse it
+                echo "$value" | jq -r '. | join(" ")'
+            else
+                # It's a string, return as-is
+                echo "$value"
+            fi
+        else
+            echo "$default"
+        fi
+    else
+        echo "${value:-$default}"
+    fi
+}
+
+get_menu_title() {
+    local menu_name="$1"
+    jq -r ".menus.$menu_name.title // \"\"" "$CACHE_FILE" 2>/dev/null
+}
+
+get_menu_dynamic() {
+    local menu_name="$1"
+    jq -r ".menus.$menu_name.dynamic // false" "$CACHE_FILE" 2>/dev/null
+}
+
+get_menu_items_count() {
+    local menu_name="$1"
+    jq -r ".menus.$menu_name.items | length" "$CACHE_FILE" 2>/dev/null
+}
+
+get_menu_item() {
+    local menu_name="$1"
+    local item_index="$2"
+    local field="$3"
+    jq -r ".menus.$menu_name.items[$item_index].$field // \"\"" "$CACHE_FILE" 2>/dev/null
+}
+
+get_submenu_data() {
+    local menu_name="$1"
+    local item_index="$2"
+    jq -c ".menus.$menu_name.items[$item_index].submenu // null" "$CACHE_FILE" 2>/dev/null
+}
+
+# Utility functions
+show_notify() {
+    local message="$1"
+    local notify_cmd
+    notify_cmd=$(get_config "notify_command" "notify-send")
+    $notify_cmd "Menu" "$message"
+}
+
+edit_config() {
+    local file_path="$1"
+    local editor
+    editor=$(get_config "editor" "nvim")
+    show_notify "Editing config file: $file_path"
+    local terminal
+    terminal=$(get_config "terminal" "kitty")
+    # eval to expand any variables in file_path
+    $terminal -- "$editor" "$(eval echo "$file_path")"
+}
+
+# Menu display functions
+show_menu() {
+    local title="$1"
+    local extra_args="${2:-}"
+    local preselect="${3:-}"
+    local options="$4"
+
+    local menu_app
+    menu_app=$(get_config "menu_app" "wofi")
+
+    # Ensure we have a valid menu app
+    if [[ -z "$menu_app" || "$menu_app" == "null" ]]; then
+        menu_app="wofi"
+    fi
+
+    local menu_args
+    menu_args=$(get_config "menu_args" "--insensitive", true)
+
+    # Parse extra arguments
+    local args=()
+    if [[ -n "$extra_args" ]]; then
+        read -r -a args <<< "$extra_args"
+    fi
+
+    # Parse menu arguments
+    local menu_args_array=()
+    if [[ -n "$menu_args" ]]; then
+        read -r -a menu_args_array <<< "$menu_args"
+    fi
+
+    # Display menu and get selection
+    local selection
+    selection=$(echo -e "$options" | $menu_app -p "$title" "${menu_args_array[@]}" "${args[@]}")
+
+    if [[ -z "$selection" ]]; then
+        return 1
+    fi
+
+    echo "$selection"
+}
+
+# Dynamic menu functions
+show_dynamic_menu() {
+    local menu_name="$1"
+    local command
+    command=$(jq -r ".menus.$menu_name.command // \"\"" "$CACHE_FILE" 2>/dev/null)
+
+    if [[ -z "$command" ]]; then
+        show_notify "No command specified for dynamic menu '$menu_name'"
+        return 1
+    fi
+
+    # Execute command and get options
+    local options
+    options=$(eval "$command" 2>/dev/null)
+
+    if [[ -z "$options" ]]; then
+        show_notify "No options returned from dynamic menu command"
+        return 1
+    fi
+
+    # Show menu with options
+    local selection
+    selection=$(show_menu "$menu_name" "--show dmenu" "" "$options")
+
+    if [[ -n "$selection" ]]; then
+        # Get the set command
+        local set_command
+        set_command=$(jq -r ".menus.$menu_name.set_command // \"\"" "$CACHE_FILE" 2>/dev/null)
+
+        if [[ -n "$set_command" ]]; then
+            eval "$set_command \"$selection\""
+        fi
+    fi
+}
+
+# Submenu functions
+show_nested_submenu() {
+    local submenu_data="$1"
+    local parent_title="${2:-}"
+    local menu_path="${3:-}"
+
+    # Parse submenu data
+    local title
+    title=$(echo "$submenu_data" | jq -r '.title // ""' 2>/dev/null)
+
+    if [[ -z "$title" || "$title" == "null" ]]; then
+        show_notify "No title found in submenu data"
+        return 1
+    fi
+
+    # Get items count
+    local items_count
+    items_count=$(echo "$submenu_data" | jq '.items | length' 2>/dev/null)
+
+    if [[ -z "$items_count" || "$items_count" == "0" ]]; then
+        show_notify "No items found in submenu"
+        return 1
+    fi
+
+    # Build menu options
+    local options=""
+    local item_count=0
+
+    # Process each item
+    for ((i=0; i<items_count; i++)); do
+        local name icon action
+        name=$(echo "$submenu_data" | jq -r ".items[$i].name // \"\"" 2>/dev/null)
+        icon=$(echo "$submenu_data" | jq -r ".items[$i].icon // \"\"" 2>/dev/null)
+        action=$(echo "$submenu_data" | jq -r ".items[$i].action // \"\"" 2>/dev/null)
+
+        if [[ -n "$name" && "$name" != "null" ]]; then
+            local option_line="  "
+            if [[ -n "$icon" && "$icon" != "null" ]]; then
+                option_line+="$icon "
+            fi
+            option_line+="$name"
+            options+="$option_line"
+
+            if [[ $((i+1)) -lt $items_count ]]; then
+                options+="\n"
+            fi
+        fi
+    done
+
+    # Show menu
+    local selection
+    selection=$(show_menu "$title" "--show dmenu" "" "$options")
+
+    if [[ -n "$selection" ]]; then
+        # Find selected item and execute action
+        for ((i=0; i<items_count; i++)); do
+            local name icon action
+            name=$(echo "$submenu_data" | jq -r ".items[$i].name // \"\"" 2>/dev/null)
+            icon=$(echo "$submenu_data" | jq -r ".items[$i].icon // \"\"" 2>/dev/null)
+            action=$(echo "$submenu_data" | jq -r ".items[$i].action // \"\"" 2>/dev/null)
+
+            local item_line="  "
+            if [[ -n "$icon" && "$icon" != "null" ]]; then
+                item_line+="$icon "
+            fi
+            item_line+="$name"
+
+            if [[ "$selection" == *"$name"* ]]; then
+                case "$action" in
+                    "command")
+                        local command
+                        command=$(echo "$submenu_data" | jq -r ".items[$i].command // \"\"" 2>/dev/null)
+                        if [[ -n "$command" ]]; then
+                            eval "$command"
+                        fi
+                        ;;
+                    "script")
+                        local script
+                        script=$(echo "$submenu_data" | jq -r ".items[$i].script // \"\"" 2>/dev/null)
+                        if [[ -n "$script" ]]; then
+                            bash "$script"
+                        fi
+                        ;;
+                    "edit")
+                        local file
+                        file=$(echo "$submenu_data" | jq -r ".items[$i].file // \"\"" 2>/dev/null)
+                        if [[ -n "$file" ]]; then
+                            edit_config "$file"
+                        fi
+                        ;;
+                    "submenu")
+                        local submenu_data_item
+                        submenu_data_item=$(echo "$submenu_data" | jq -c ".items[$i].submenu // null" 2>/dev/null)
+                        if [[ -n "$submenu_data_item" && "$submenu_data_item" != "null" ]]; then
+                            show_nested_submenu "$submenu_data_item" "$title" "$menu_path > $title"
+                        fi
+                        ;;
+                    "notify")
+                        local message
+                        message=$(echo "$submenu_data" | jq -r ".items[$i].message // \"\"" 2>/dev/null)
+                        if [[ -n "$message" ]]; then
+                            show_notify "$message"
+                        fi
+                        ;;
+                esac
+                break
+            fi
+        done
+    fi
+}
+
+# Internal menu display function (without stack management)
+display_menu() {
+    local menu_name="$1"
+    local parent_menu="${2:-}"
+    local menu_path="${3:-}"
+
+    # Check if it's a dynamic menu
+    local is_dynamic
+    is_dynamic=$(get_menu_dynamic "$menu_name")
+
+    if [[ "$is_dynamic" == "true" ]]; then
+        show_dynamic_menu "$menu_name"
+        return
+    fi
+
+    # Get menu title
+    local title
+    title=$(get_menu_title "$menu_name")
+
+    if [[ -z "$title" || "$title" == "null" ]]; then
+        show_notify "Menu '$menu_name' not found in configuration"
+        return
+    fi
+
+    # Add breadcrumb if not main menu
+    if [[ "$menu_name" != "main" && -n "$parent_menu" ]]; then
+        title="$parent_menu > $title"
+    fi
+
+    # Check if menu has items
+    local items_count
+    items_count=$(get_menu_items_count "$menu_name")
+
+    if [[ -z "$items_count" || "$items_count" == "0" ]]; then
+        show_notify "No items found for menu '$menu_name'"
+        return
+    fi
+
+    # Build menu options with icons
+    local options=""
+    local item_count=0
+    local total_items="$items_count"
+
+    # Add back option for submenus (except main menu)
+    if [[ "$menu_name" != "main" && -n "$parent_menu" ]]; then
+        options="  ← Back to $parent_menu\n"
+        ((item_count++))
+    fi
+
+    # Process each item
+    for ((i=0; i<total_items; i++)); do
+        local name icon action submenu condition condition_file
+
+        # Get item properties
+        name=$(get_menu_item "$menu_name" "$i" "name")
+        icon=$(get_menu_item "$menu_name" "$i" "icon")
+        action=$(get_menu_item "$menu_name" "$i" "action")
+        submenu=$(get_submenu_data "$menu_name" "$i")
+        condition=$(get_menu_item "$menu_name" "$i" "condition")
+        condition_file=$(get_menu_item "$menu_name" "$i" "condition_file")
+
+        # Check conditions
+        if [[ "$condition" == "file_exists" && -n "$condition_file" ]]; then
+            if [[ ! -f "$condition_file" ]]; then
+                continue
+            fi
+        fi
+
+        local option_line="  "
+        if [[ -n "$icon" && "$icon" != "null" ]]; then
+            option_line+="$icon "
+        fi
+        option_line+="$name"
+        options+="$option_line"
+
+        if [[ $((i+1)) -lt $total_items ]]; then
+            options+="\n"
+        fi
+    done
+
+    # Show menu and return selection
+    show_menu "$title" "--show dmenu" "" "$options"
+}
+
+# Handle menu selection
+handle_menu_selection() {
+    local menu_name="$1"
+    local selection="$2"
+    local parent_menu="$3"
+    local menu_path="$4"
+
+    # Get total items count
+    local total_items
+    total_items=$(get_menu_items_count "$menu_name")
+
+    # Find selected item and execute action
+    for ((i=0; i<total_items; i++)); do
+        local name icon action command script file submenu message restart_command
+        name=$(get_menu_item "$menu_name" "$i" "name")
+        icon=$(get_menu_item "$menu_name" "$i" "icon")
+        action=$(get_menu_item "$menu_name" "$i" "action")
+        command=$(get_menu_item "$menu_name" "$i" "command")
+        script=$(get_menu_item "$menu_name" "$i" "script")
+        file=$(get_menu_item "$menu_name" "$i" "file")
+        submenu=$(get_submenu_data "$menu_name" "$i")
+        message=$(get_menu_item "$menu_name" "$i" "message")
+        restart_command=$(get_menu_item "$menu_name" "$i" "restart_command")
+
+        local item_line="  "
+        if [[ -n "$icon" && "$icon" != "null" ]]; then
+            item_line+="$icon "
+        fi
+        item_line+="$name"
+
+        if [[ "$selection" == *"$name"* ]]; then
+            echo "Selected: $name with action: $action" >&2
+            case "$action" in
+                "drun")
+                    local drun_args
+                    drun_args=$(get_config "menu_args" "--insensitive" true)
+                    # Parse drun_args into array
+                    local drun_args_array=()
+                    if [[ -n "$drun_args" ]]; then
+                        read -r -a drun_args_array <<< "$drun_args"
+                    fi
+                    # Launch wofi with drun
+                    echo "${drun_args_array[@]}" >&2
+                    wofi -p "Launch…" "${drun_args_array[@]}" --show drun
+                    ;;
+                "command")
+                    if [[ -n "$command" ]]; then
+                        eval "$command"
+                    fi
+                    ;;
+                "script")
+                    if [[ -n "$script" ]]; then
+                        bash "$script"
+                    fi
+                    ;;
+                "edit")
+                    if [[ -n "$file" ]]; then
+                        edit_config "$file"
+                    fi
+                    ;;
+                "edit_restart")
+                    if [[ -n "$file" ]]; then
+                        edit_config "$file"
+                        if [[ -n "$restart_command" ]]; then
+                            eval "$restart_command"
+                        fi
+                    fi
+                    ;;
+                "submenu")
+                    if [[ -n "$submenu" && "$submenu" != "null" ]]; then
+                        # Check if it's a nested submenu (has title and items) or a reference to another menu
+                        local submenu_title
+                        submenu_title=$(echo "$submenu" | jq -r '.title // ""' 2>/dev/null)
+
+                        if [[ -n "$submenu_title" && "$submenu_title" != "null" && "$submenu_title" != "" ]]; then
+                            # It's a nested submenu, show it directly
+                            show_nested_submenu "$submenu" "$title" "$menu_path > $title"
+                        else
+                            # It's a reference to another menu, show that menu
+                            # Push to stack and return special value to indicate menu change
+                            push_menu "$submenu" "$menu_path > $title"
+                            echo "MENU_CHANGE:$submenu:$title:$menu_path > $title"
+                            return 0
+                        fi
+                    fi
+                    ;;
+                "notify")
+                    if [[ -n "$message" ]]; then
+                        show_notify "$message"
+                    fi
+                    ;;
+            esac
+            break
+        fi
+    done
+}
+
+# Main function
+main() {
+    local menu_name="${1:-$(get_config "default_menu" "main")}"
+
+    # Initialize menu stack with main menu
+    MENU_STACK=()
+    MENU_PATH_STACK=()
+
+    init_menu "$menu_name"
+}
+
+# Main menu function with stack management
+init_menu() {
+    local menu_name="$1"
+    local parent_menu="${2:-}"
+    local menu_path="${3:-}"
+
+    # Push current menu to stack
+    push_menu "$menu_name" "$menu_path"
+
+    # Display the menu
+    local selection
+    selection=$(display_menu "$menu_name" "$parent_menu" "$menu_path")
+
+    # Handle other actions
+    handle_menu_selection "$menu_name" "$selection" "$parent_menu" "$menu_path"
+}
+
+# Run main function with all arguments
+main "$@"
