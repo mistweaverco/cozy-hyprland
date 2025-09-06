@@ -5,7 +5,7 @@
 
 # Configuration
 CONFIG_FILE="${HYPRLAND_MENU_CONFIG:-$HOME/.config/hypr/cozy-hyprland-menu.yaml}"
-SCRIPT_FILE="$(realpath "$0")"
+MENU_CACHE="{}"
 
 # Check if yq is available
 if ! command -v yq &> /dev/null; then
@@ -20,42 +20,12 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
     exit 1
 fi
 
-# Cache management functions
-get_cache_file() {
-    local yaml_hash script_hash
-    yaml_hash=$(sha256sum "$CONFIG_FILE" | cut -d' ' -f1)
-    script_hash=$(sha256sum "$SCRIPT_FILE" | cut -d' ' -f1)
-    echo "/tmp/cozy-hyprland-menu-cache-${USER}-${yaml_hash}-${script_hash}.json"
-}
-
-is_cache_valid() {
-    local cache_file="$1"
-    [[ -f "$cache_file" ]]
-}
-
-generate_cache() {
-    local cache_file="$1"
-
-    echo "Generating menu cache..." >&2
-
-    # Convert YAML to JSON and save as cache
-    yq . "$CONFIG_FILE" > "$cache_file"
-
-    echo "Cache generated: $cache_file"
-}
-
-load_cache() {
-    local cache_file="$1"
-    # Cache is loaded by querying the JSON file directly
-    CACHE_FILE="$cache_file"
+load_menu_config_file() {
+    MENU_CACHE=$(yq . "$CONFIG_FILE")
 }
 
 # Initialize cache
-CACHE_FILE=$(get_cache_file)
-if ! is_cache_valid "$CACHE_FILE"; then
-    generate_cache "$CACHE_FILE"
-fi
-load_cache "$CACHE_FILE"
+load_menu_config_file
 
 # Menu navigation stack
 declare -a MENU_STACK=()
@@ -99,7 +69,7 @@ get_config() {
     local is_array="${3:-false}"
 
     local value
-    value=$(jq -r ".config.$key // \"$default\"" "$CACHE_FILE" 2>/dev/null)
+    value=$(jq -r ".config.$key // \"$default\"" <<< "$MENU_CACHE" 2>/dev/null)
 
     if [[ "$is_array" == "true" ]]; then
         # Handle array case - if value is a JSON array, parse it
@@ -122,30 +92,30 @@ get_config() {
 
 get_menu_title() {
     local menu_name="$1"
-    jq -r ".menus.$menu_name.title // \"\"" "$CACHE_FILE" 2>/dev/null
+    jq -r ".menus.$menu_name.title // \"\"" <<< "$MENU_CACHE" 2>/dev/null
 }
 
 get_menu_dynamic() {
     local menu_name="$1"
-    jq -r ".menus.$menu_name.dynamic // false" "$CACHE_FILE" 2>/dev/null
+    jq -r ".menus.$menu_name.dynamic // false" <<< "$MENU_CACHE" 2>/dev/null
 }
 
 get_menu_items_count() {
     local menu_name="$1"
-    jq -r ".menus.$menu_name.items | length" "$CACHE_FILE" 2>/dev/null
+    jq -r ".menus.$menu_name.items | length" <<< "$MENU_CACHE" 2>/dev/null
 }
 
 get_menu_item() {
     local menu_name="$1"
     local item_index="$2"
     local field="$3"
-    jq -r ".menus.$menu_name.items[$item_index].$field // \"\"" "$CACHE_FILE" 2>/dev/null
+    jq -r ".menus.$menu_name.items[$item_index].$field // \"\"" <<< "$MENU_CACHE" 2>/dev/null
 }
 
 get_submenu_data() {
     local menu_name="$1"
     local item_index="$2"
-    jq -c ".menus.$menu_name.items[$item_index].submenu // null" "$CACHE_FILE" 2>/dev/null
+    jq -c ".menus.$menu_name.items[$item_index].submenu // null" <<< "$MENU_CACHE" 2>/dev/null
 }
 
 # Utility functions
@@ -212,7 +182,7 @@ show_menu() {
 show_dynamic_menu() {
     local menu_name="$1"
     local command
-    command=$(jq -r ".menus.$menu_name.command // \"\"" "$CACHE_FILE" 2>/dev/null)
+    command=$(jq -r ".menus.$menu_name.command // \"\"" <<< "$MENU_CACHE" 2>/dev/null)
 
     if [[ -z "$command" ]]; then
         show_notify "No command specified for dynamic menu '$menu_name'"
@@ -235,7 +205,7 @@ show_dynamic_menu() {
     if [[ -n "$selection" ]]; then
         # Get the set command
         local set_command
-        set_command=$(jq -r ".menus.$menu_name.set_command // \"\"" "$CACHE_FILE" 2>/dev/null)
+        set_command=$(jq -r ".menus.$menu_name.set_command // \"\"" <<< "$MENU_CACHE" 2>/dev/null)
 
         if [[ -n "$set_command" ]]; then
             eval "$set_command \"$selection\""
