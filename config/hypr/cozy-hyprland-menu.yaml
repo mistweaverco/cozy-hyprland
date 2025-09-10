@@ -329,6 +329,7 @@ config:
   # Menu application arguments
   menu_args:
     - "--insensitive"
+    - "--style ~/.config/wofi/style.css"
 
   # Terminal application
   terminal: "kitty"

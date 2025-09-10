@@ -77,10 +77,10 @@ get_config() {
             # Check if it's a JSON array by trying to parse it
             if echo "$value" | jq -e '. | type == "array"' >/dev/null 2>&1; then
                 # It's a JSON array, parse it
-                echo "$value" | jq -r '. | join(" ")'
+                eval echo "$(echo "$value" | jq -r '. | join(" ")')"
             else
                 # It's a string, return as-is
-                echo "$value"
+                eval echo "$value"
             fi
         else
             echo "$default"
@@ -153,7 +153,7 @@ show_menu() {
     fi
 
     local menu_args
-    menu_args=$(get_config "menu_args" "--insensitive", true)
+    menu_args=$(get_config "menu_args" "--insensitive --style ~/.config/wofi/style.css", true)
 
     # Parse extra arguments
     local args=()
@@ -443,7 +443,7 @@ handle_menu_selection() {
             case "$action" in
                 "drun")
                     local drun_args
-                    drun_args=$(get_config "menu_args" "--insensitive" true)
+                    drun_args=$(get_config "menu_args" "--insensitive --style ~/.config/wofi/style.css" true)
                     # Parse drun_args into array
                     local drun_args_array=()
                     if [[ -n "$drun_args" ]]; then

@@ -85,6 +85,7 @@ ln -s "$curr_dir/config/hypr" ~/.config/hypr
 ln -s "$curr_dir/config/mako" ~/.config/mako
 ln -s "$curr_dir/config/swayosd" ~/.config/swayosd
 ln -s "$curr_dir/config/waybar" ~/.config/waybar
+ln -s "$curr_dir/config/wofi" ~/.config/wofi
 echo ""
 
 echo ""
