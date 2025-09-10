@@ -47,7 +47,7 @@
     // only show icon when updates are available, else show a cat emoji
     "format": "{text}",
     "exec": "~/.config/hypr/bin/hyprland-check-updates",
-    "on-click": "kitty --class TUI.float pamac upgrade",
+    "on-click": "pamac-manager --updates",
     "return-type": "json",
     "interval": 3600
   },
