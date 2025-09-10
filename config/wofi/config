@@ -1,0 +1,9 @@
+width=50%
+lines=15
+
+hide_scroll = true
+allow_images = true
+image_size = 25
+normal_window = true
+
+columns=1

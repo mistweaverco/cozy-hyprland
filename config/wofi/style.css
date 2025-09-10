@@ -46,6 +46,7 @@
 @define-color	surface0-rgb  rgb(49, 50, 68);
 @define-color	base  #1e1e2e;
 @define-color	base-rgb  rgb(30, 30, 46);
+@define-color	base-translucent  rgb(30, 30, 46, 0.8);
 @define-color	mantle  #181825;
 @define-color	mantle-rgb  rgb(24, 24, 37);
 @define-color	crust  #11111b;
@@ -56,13 +57,18 @@
   font-size: 14px;
 }
 
+#outer-box {
+    background-color: rgba(20, 20,20, 0.7);
+    border: 1px solid rgba(255, 0, 0, 0.5);
+}
+
 /* Window */
 window {
   margin: 0px;
   padding: 10px;
   border: 0.16em solid @lavender;
   border-radius: 0.1em;
-  background-color: @base;
+  background-color: @base-translucent;
   animation: slideIn 0.5s ease-in-out both;
 }
 
