@@ -19,6 +19,7 @@ echo "📦 Checking required packages..."
 missing_packages=()
 
 required_packages=(
+  "brightnessctl"
   "qt6-svg"
   "qt6-multimedia-ffmpeg"
   "qt6-virtualkeyboard"
@@ -42,7 +43,7 @@ required_packages=(
   "hyprshot"
   "pamixer"
   "wiremix"
-  "impala"
+  "networkmanager"
   "blueberry"
   "waybar"
   "nvim"

@@ -74,7 +74,7 @@
     "tooltip-format-disconnected": "Disconnected",
     "interval": 3,
     "spacing": 1,
-    "on-click": "kitty --class TUI.float impala"
+    "on-click": "kitty --class TUI.float nmtui"
   },
   "battery": {
     "format": "{capacity}% {icon}",
