@@ -2,25 +2,32 @@
 
 # Capture the full output of pamac checkupdates
 updates_info=$(pamac checkupdates 2>/dev/null)
+exit_code=$?
 
-# Check the exit code. A code of 100 means updates are available.
-if [ "$?" -eq 100 ]; then
+# Check if there are updates, either by exit code or by looking for AUR updates in the output
+# The original check for exit code 100 works for official updates.
+# We now add a check for the "Out of Date:" string which indicates AUR updates.
+if [ "$exit_code" -eq 100 ] || echo "$updates_info" | grep -q "Out of Date:"; then
 
-    # Extract all lines that contain a package name.
-    package_list=$(echo "$updates_info" | grep -E ' ->|AUR' | awk '{print $1}')
+    # Extract all lines that contain a package name. This grep is now even
+    # more robust, as it will capture packages from both the main list (" ->")
+    # and the "Out of Date" section ("AUR").
+    package_list=$(echo "$updates_info" | grep -E ' ->|AUR' | awk '{print $1}' | sort -u)
 
     # Count the number of extracted packages
     num_updates=$(echo "$package_list" | wc -l)
 
-    # Format the package list for the tooltip, adding a bullet point to each name
-    formatted_list=$(echo "$package_list" | sed 's/^/- /')
+    # If the number of packages is greater than 0, proceed
+    if [ "$num_updates" -gt 0 ]; then
+        # Format the package list for the tooltip, adding a bullet point to each name
+        formatted_list=$(echo "$package_list" | sed 's/^/- /')
 
-    # Escape the newlines in the formatted list so it is a valid JSON string.
-    # We use `printf` and `sed` to replace each literal newline with the `\n` sequence.
-    escaped_list=$(printf "%s" "$formatted_list" | sed ':a;N;s/\n/\\n/g;ta')
+        # Escape the newlines in the formatted list so it is a valid JSON string.
+        escaped_list=$(printf "%s" "$formatted_list" | sed ':a;N;s/\n/\\n/g;ta')
 
-    # Construct the full tooltip text.
-    tooltip_text="There are $num_updates packages available to upgrade:\\n\\n$escaped_list"
+        # Construct the full tooltip text.
+        tooltip_text="There are $num_updates packages available to upgrade:\\n\\n$escaped_list"
 
-    echo "{\"text\": \"📦\", \"tooltip\": \"$tooltip_text\", \"class\": \"updates\"}"
+        echo "{\"text\": \"📦\", \"tooltip\": \"$tooltip_text\", \"class\": \"updates\"}"
+    fi
 fi
